@@ -3,9 +3,10 @@ defmodule Todo.Cache do
 
   # Helper methods
 
-  def start() do
+  def start_link(_) do
+    IO.puts("Starting to-do cache with `start_link`...")
     Todo.Database.start()
-    GenServer.start(__MODULE__, nil, name: __MODULE__)
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
   def get_server_pid(todo_server_name) do

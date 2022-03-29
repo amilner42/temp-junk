@@ -4,6 +4,7 @@ defmodule Todo.Server do
   # Helper methods
 
   def start(todo_server_name) do
+    IO.puts("Starting todo server #{todo_server_name}")
     GenServer.start(__MODULE__, todo_server_name)
   end
 

@@ -5,7 +5,7 @@ defmodule Todo.Cache do
 
   def start_link(_) do
     IO.puts("Starting to-do cache with `start_link`...")
-    Todo.Database.start()
+    Todo.Database.start_link()
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
@@ -24,7 +24,7 @@ defmodule Todo.Cache do
   def handle_call({:get_server_pid, todo_server_name}, _, pid_by_todo_server_name_state) do
     case Map.get(pid_by_todo_server_name_state, todo_server_name) do
       nil ->
-        {:ok, pid} = Todo.Server.start(todo_server_name)
+        {:ok, pid} = Todo.Server.start_link(todo_server_name)
 
         new_pid_by_todo_server_name_state =
           Map.put(pid_by_todo_server_name_state, todo_server_name, pid)

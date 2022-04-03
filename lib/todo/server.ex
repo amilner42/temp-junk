@@ -1,11 +1,16 @@
 defmodule Todo.Server do
-  use GenServer
+  use GenServer, restart: :temporary
 
   # Helper methods
 
   def start_link(todo_server_name) do
     IO.puts("Starting todo server #{todo_server_name}")
-    GenServer.start_link(__MODULE__, todo_server_name)
+
+    GenServer.start_link(
+      __MODULE__,
+      todo_server_name,
+      name: via_tuple(todo_server_name)
+    )
   end
 
   def add_entry(server_pid, entry) do
@@ -63,5 +68,11 @@ defmodule Todo.Server do
   def handle_info(:real_init, {todo_server_name, _}) do
     starting_todo_list = Todo.Database.get(todo_server_name) || %Todo.List{}
     {:noreply, {todo_server_name, starting_todo_list}}
+  end
+
+  # Private
+
+  defp via_tuple(todo_server_name) do
+    Todo.ProcessRegistry.via_tuple({__MODULE__, todo_server_name})
   end
 end

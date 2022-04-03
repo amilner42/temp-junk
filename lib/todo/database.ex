@@ -1,65 +1,52 @@
 defmodule Todo.Database do
-  use GenServer
-
   @db_folder "./persist"
   @db_worker_count 3
 
-  def start_link(_) do
-    IO.puts("Starting database...")
-    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
-  end
+  # Interface Functions
 
   def store(key, data) do
-    GenServer.cast(__MODULE__, {:store, key, data})
+    file_location = file_location_for_key(key)
+    worker_index = worker_index_for_key(key)
+
+    Todo.DatabaseWorker.store(worker_index, file_location, data)
   end
 
   def get(key) do
     file_location = file_location_for_key(key)
-    db_worker_pid = GenServer.call(__MODULE__, {:get_db_worker_pid, key})
+    worker_index = worker_index_for_key(key)
 
-    GenServer.call(db_worker_pid, {:get, file_location})
+    Todo.DatabaseWorker.get(worker_index, file_location)
   end
 
-  # Module callback methods
+  # Module Callback Methods
 
-  def init(_) do
+  defp worker_spec(worker_id) do
+    default_worker_spec = {Todo.DatabaseWorker, worker_id}
+    Supervisor.child_spec(default_worker_spec, id: worker_id)
+  end
+
+  def child_spec(_) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, []},
+      type: :supervisor
+    }
+  end
+
+  def start_link do
     File.mkdir_p!(@db_folder)
-    worker_pid_by_index = start_workers()
-    {:ok, worker_pid_by_index}
+
+    children = Enum.map(1..@db_worker_count, &worker_spec/1)
+    Supervisor.start_link(children, strategy: :one_for_one)
   end
 
-  def handle_cast({:store, key, data}, worker_pid_by_index) do
-    file_location = file_location_for_key(key)
-    db_worker_index = worker_index_for_key(key)
-    db_worker_pid = Map.fetch!(worker_pid_by_index, db_worker_index)
-
-    :ok = GenServer.cast(db_worker_pid, {:store, file_location, data})
-    {:noreply, worker_pid_by_index}
-  end
-
-  def handle_call({:get_db_worker_pid, key}, _, worker_pid_by_index) do
-    db_worker_index = worker_index_for_key(key)
-    db_worker_pid = Map.fetch!(worker_pid_by_index, db_worker_index)
-
-    {:reply, db_worker_pid, worker_pid_by_index}
-  end
+  # Private Helpers
 
   defp file_location_for_key(key) do
     Path.join(@db_folder, to_string(key))
   end
 
-  defp start_workers() do
-    Enum.reduce(
-      0..(@db_worker_count - 1),
-      %{},
-      fn index, acc ->
-        {:ok, db_worker_pid} = Todo.DatabaseWorker.start_link()
-        Map.put(acc, index, db_worker_pid)
-      end
-    )
-  end
-
   defp worker_index_for_key(key) do
-    :erlang.phash2(key, @db_worker_count)
+    :erlang.phash2(key, @db_worker_count) + 1
   end
 end

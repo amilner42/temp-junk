@@ -1,17 +1,17 @@
 defmodule Todo.DatabaseWorker do
   use GenServer
 
-  def start_link() do
+  def start_link(worker_id) do
     IO.puts("Starting database worker...")
-    GenServer.start_link(__MODULE__, nil)
+    GenServer.start_link(__MODULE__, nil, name: via_tuple(worker_id))
   end
 
-  def store(database_worker_pid, file_location, data) do
-    GenServer.cast(database_worker_pid, {:store, file_location, data})
+  def store(worker_id, file_location, data) do
+    GenServer.cast(via_tuple(worker_id), {:store, file_location, data})
   end
 
-  def get(database_worker_pid, file_location) do
-    GenServer.call(database_worker_pid, {:get, file_location})
+  def get(worker_id, file_location) do
+    GenServer.call(via_tuple(worker_id), {:get, file_location})
   end
 
   # Callback module methods
@@ -34,5 +34,11 @@ defmodule Todo.DatabaseWorker do
       end
 
     {:reply, data, state}
+  end
+
+  # Private heleprs
+
+  defp via_tuple(worker_id) do
+    Todo.ProcessRegistry.via_tuple({__MODULE__, worker_id})
   end
 end

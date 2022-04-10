@@ -28,3 +28,5 @@ todo-*.tar
 # Avoid storing files we use as our mock-db
 /persist/
 
+# IDE files
+.elixir_ls/
